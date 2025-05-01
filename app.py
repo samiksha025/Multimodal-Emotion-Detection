@@ -20,11 +20,7 @@ text_tokenizer = AutoTokenizer.from_pretrained(text_model_path)
 text_model = AutoModelForSequenceClassification.from_pretrained(text_model_path).to(device)
  
 # Fix: Load label_encoder.joblib via huggingface_hub to bypass LFS issues
-label_encoder_path = hf_hub_download(
-    repo_id="SweArmy22/emotion-journal-app",
-    filename="bert_emotion_model/label_encoder.joblib"
-)
-label_encoder_text = joblib.load(label_encoder_path)
+label_encoder_text = joblib.load("bert_emotion_model/label_encoder.joblib")
  
 def predict_text(text):
     inputs = text_tokenizer(text, return_tensors="pt", truncation=True, padding=True).to(device)
