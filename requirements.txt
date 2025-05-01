@@ -1,6 +1,8 @@
+--extra-index-url https://download.pytorch.org/whl/cpu
+ 
 gradio==4.14.0
-torch==2.0.1
-torchvision==0.15.2
+torch==2.0.1+cpu
+torchvision==0.15.2+cpu
 transformers==4.38.2
 librosa==0.10.1
 soundfile==0.12.1
