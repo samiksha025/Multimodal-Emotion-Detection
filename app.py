@@ -8,6 +8,7 @@ import os
 import joblib
 from torchvision import models, transforms
 from transformers import AutoTokenizer, AutoModelForSequenceClassification, Wav2Vec2Processor, Wav2Vec2ForSequenceClassification
+from huggingface_hub import hf_hub_download
 import datetime
 import json
  
@@ -48,13 +49,15 @@ def predict_voice(audio_path):
     return pred_label, confidence
  
 # ---------- IMAGE MODEL ----------
-image_model_path = "final_emotion_image_classifier.pth"
 class_labels = ['angry', 'fear', 'happy', 'sad', 'surprise']
 transform = transforms.Compose([
     transforms.Resize((224, 224)),
     transforms.ToTensor(),
     transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
 ])
+ 
+# Download image model via Hugging Face Hub
+image_model_path = hf_hub_download(repo_id="SweArmy22/emotion-journal-app", filename="final_emotion_image_classifier.pth")
  
 image_model = models.resnet18(pretrained=False)
 image_model.fc = torch.nn.Linear(image_model.fc.in_features, len(class_labels))
@@ -82,7 +85,7 @@ def fusion_predict(text, audio_path, image):
     final_confidence = round((text_conf + voice_conf + image_conf) / 3, 4)
     return final_label, final_confidence, text_conf, voice_conf, image_conf
  
-# ---------- LOGGING (optional) ----------
+# ---------- LOGGING ----------
 def log_interaction(user_id, text, image_path, audio_path, result):
     log = {
         "user_id": user_id,
