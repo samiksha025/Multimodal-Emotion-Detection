@@ -18,7 +18,13 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 text_model_path = "bert_emotion_model"
 text_tokenizer = AutoTokenizer.from_pretrained(text_model_path)
 text_model = AutoModelForSequenceClassification.from_pretrained(text_model_path).to(device)
-label_encoder_text = joblib.load(os.path.join(text_model_path, "label_encoder.joblib"))
+ 
+# Fix: Load label_encoder.joblib via huggingface_hub to bypass LFS issues
+label_encoder_path = hf_hub_download(
+    repo_id="SweArmy22/emotion-journal-app",
+    filename="bert_emotion_model/label_encoder.joblib"
+)
+label_encoder_text = joblib.load(label_encoder_path)
  
 def predict_text(text):
     inputs = text_tokenizer(text, return_tensors="pt", truncation=True, padding=True).to(device)
@@ -56,8 +62,10 @@ transform = transforms.Compose([
     transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
 ])
  
-# Download image model via Hugging Face Hub
-image_model_path = hf_hub_download(repo_id="SweArmy22/emotion-journal-app", filename="final_emotion_image_classifier.pth")
+image_model_path = hf_hub_download(
+    repo_id="SweArmy22/emotion-journal-app",
+    filename="final_emotion_image_classifier.pth"
+)
  
 image_model = models.resnet18(pretrained=False)
 image_model.fc = torch.nn.Linear(image_model.fc.in_features, len(class_labels))
