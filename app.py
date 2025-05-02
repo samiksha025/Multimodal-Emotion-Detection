@@ -11,7 +11,6 @@ from transformers import (
     AutoTokenizer, AutoModelForSequenceClassification,
     Wav2Vec2Processor, Wav2Vec2ForSequenceClassification
 )
-from huggingface_hub import hf_hub_download
 import datetime
 import json
  
@@ -126,9 +125,15 @@ def get_reflection_prompt(emotion):
 # ---------- MAIN GRADIO APP ----------
 def analyze_emotion(text, image, audio):
     audio_path = "/tmp/temp_audio.wav"
-    audio_data, _ = audio 
-    with open(audio_path, "wb") as f:
-        f.write(audio_data)  
+    if isinstance(audio, tuple):
+        with open(audio_path, "wb") as f:
+            f.write(audio[0])
+    elif isinstance(audio, bytes):
+        with open(audio_path, "wb") as f:
+            f.write(audio)
+    else:
+        raise ValueError("Unexpected audio input format.")
+ 
     final_label, final_confidence, text_conf, voice_conf, image_conf = fusion_predict(text, audio_path, image)
     return final_label, {
         "text_confidence": text_conf,
@@ -136,6 +141,7 @@ def analyze_emotion(text, image, audio):
         "image_confidence": image_conf
     }, get_mindfulness_suggestions(final_label), get_reflection_prompt(final_label)
  
+# ---------- INTERFACE ----------
 gr.Interface(
     fn=analyze_emotion,
     inputs=[
@@ -150,4 +156,4 @@ gr.Interface(
         gr.Textbox(label="Reflection Prompt")
     ],
     title="AI-powered Mood Journal & Emotion Tracker"
-).launch()
+).launch(share=True)
