@@ -126,16 +126,20 @@ def get_reflection_prompt(emotion):
 def analyze_emotion(text, image, audio):
     audio_path = "/tmp/temp_audio.wav"
  
-    if isinstance(audio, tuple) and isinstance(audio[0], bytes):
-        with open(audio_path, "wb") as f:
-            f.write(audio[0])
-    elif isinstance(audio, str) and os.path.exists(audio):
-        audio_path = audio  # already saved path
-    elif isinstance(audio, bytes):
-        with open(audio_path, "wb") as f:
-            f.write(audio)
-    else:
-        raise ValueError("Unexpected audio input format or corrupted upload.")
+    # Handle Gradio SSR audio input format variations
+    try:
+        if isinstance(audio, tuple) and isinstance(audio[0], bytes):
+            with open(audio_path, "wb") as f:
+                f.write(audio[0])
+        elif isinstance(audio, bytes):
+            with open(audio_path, "wb") as f:
+                f.write(audio)
+        elif isinstance(audio, str) and os.path.exists(audio):
+            audio_path = audio  # use the file path directly
+        else:
+            raise ValueError("Unexpected audio input format or corrupted upload.")
+    except Exception as e:
+        raise ValueError(f"Audio processing failed: {str(e)}")
  
     final_label, final_confidence, text_conf, voice_conf, image_conf = fusion_predict(text, audio_path, image)
  
