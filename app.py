@@ -60,28 +60,46 @@ def predict_voice(audio_path):
  
 # ---------- IMAGE MODEL ----------
 class_labels = ['angry', 'fear', 'happy', 'sad', 'surprise']
+# Transformation to resize, normalize and convert the image to a tensor
 transform = transforms.Compose([
     transforms.Resize((224, 224)),
     transforms.ToTensor(),
     transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
 ])
  
-image_model_path = "final_emotion_image_classifier.pth"
+# ---------- IMAGE MODEL ----------
+image_model_path = "final_emotion_image_classifier.pth"  # path to the trained image model
  
+# Load the ResNet18 model
 image_model = models.resnet18(pretrained=False)
 image_model.fc = torch.nn.Linear(image_model.fc.in_features, len(class_labels))
 image_model.load_state_dict(torch.load(image_model_path, map_location=device))
 image_model = image_model.to(device)
 image_model.eval()
  
-def predict_image(image: Image.Image):
+def predict_image(image: Union[Image.Image, np.ndarray]) -> Tuple[str, float]:
+    """
+    Function to predict the emotion from the uploaded image.
+    Args:
+    - image (PIL.Image or np.ndarray): The input image for emotion classification
+    Returns:
+    - (str, float): Predicted emotion label and confidence score
+    """
+    # Ensure the image is a PIL image
+    if isinstance(image, np.ndarray):
+        image = Image.fromarray(image)  # Convert numpy ndarray to PIL Image
+ 
+    # Apply transformations to the image
     img_tensor = transform(image).unsqueeze(0).to(device)
+ 
+    # Make prediction with no gradient computation
     with torch.no_grad():
         logits = image_model(img_tensor)
-        probs = F.softmax(logits, dim=1)
-        pred_idx = torch.argmax(probs, dim=1).item()
-        pred_label = class_labels[pred_idx]
-        confidence = round(probs[0][pred_idx].item(), 4)
+        probs = torch.nn.functional.softmax(logits, dim=1)  # Get probabilities
+        pred_idx = torch.argmax(probs, dim=1).item()  # Get the index of the predicted label
+        pred_label = class_labels[pred_idx]  # Get the corresponding label
+        confidence = round(probs[0][pred_idx].item(), 4)  # Confidence score
+ 
     return pred_label, confidence
  
 # ---------- FUSION ----------
