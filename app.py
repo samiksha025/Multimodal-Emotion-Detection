@@ -126,7 +126,6 @@ def get_reflection_prompt(emotion):
 def analyze_emotion(text, image, audio):
     audio_path = "/tmp/temp_audio.wav"
  
-    # Handle Gradio SSR audio input format variations
     try:
         if isinstance(audio, tuple) and isinstance(audio[0], bytes):
             with open(audio_path, "wb") as f:
@@ -135,7 +134,10 @@ def analyze_emotion(text, image, audio):
             with open(audio_path, "wb") as f:
                 f.write(audio)
         elif isinstance(audio, str) and os.path.exists(audio):
-            audio_path = audio  # use the file path directly
+            audio_path = audio
+        elif isinstance(audio, dict) and "name" in audio:
+            # Happens in SSR mode: audio is dict with temp file path
+            audio_path = audio["name"]
         else:
             raise ValueError("Unexpected audio input format or corrupted upload.")
     except Exception as e:
