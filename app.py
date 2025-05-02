@@ -15,7 +15,7 @@ import datetime
 import json
 import wave
 import contextlib
-from typing import Union, Tuple, Dict, Optional
+from typing import Union, Tuple, Dict
  
 # ---------- CONFIG ----------
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -65,7 +65,7 @@ transform = transforms.Compose([
     transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
 ])
  
-image_model_path = "final_emotion_image_classifier.pth"  # use local file
+image_model_path = "final_emotion_image_classifier.pth"
  
 image_model = models.resnet18(pretrained=False)
 image_model.fc = torch.nn.Linear(image_model.fc.in_features, len(class_labels))
@@ -125,53 +125,47 @@ def get_reflection_prompt(emotion):
         "surprise": "How can you adapt to unexpected changes and stay positive?"
     }.get(emotion, "Reflect on your feelings and how you can improve your emotional well-being.")
  
-# ---------- MAIN GRADIO APP ----------
+# ---------- AUDIO VALIDATION ----------
 def validate_audio_file(audio_path: str) -> bool:
-    """Validate the audio file format and basic integrity."""
     try:
         with contextlib.closing(wave.open(audio_path, 'r')) as audio_file:
-            # Check basic WAV file properties
             if audio_file.getnchannels() not in [1, 2]:
                 return False
-            if audio_file.getframerate() < 8000:  # Minimum reasonable sample rate
+            if audio_file.getframerate() < 8000:
                 return False
-            if audio_file.getnframes() == 0:  # Empty file
+            if audio_file.getnframes() == 0:
                 return False
         return True
     except (wave.Error, EOFError):
         return False
  
+# ---------- MAIN GRADIO APP ----------
 def analyze_emotion(text: str, image, audio: Union[bytes, Tuple[bytes], str, Dict]) -> Tuple:
     audio_path = "/tmp/temp_audio.wav"
-    # Handle different audio input formats
     try:
         if isinstance(audio, tuple) and len(audio) > 0 and isinstance(audio[0], bytes):
-            # Case 1: Audio comes as tuple with bytes (common in Gradio)
             with open(audio_path, "wb") as f:
                 f.write(audio[0])
         elif isinstance(audio, bytes):
-            # Case 2: Direct bytes input
             with open(audio_path, "wb") as f:
                 f.write(audio)
         elif isinstance(audio, str) and os.path.exists(audio):
-            # Case 3: Path to existing file
             if not audio.lower().endswith('.wav'):
                 raise ValueError("Only WAV audio files are supported")
             audio_path = audio
-        elif isinstance(audio, dict) and "name" in audio:
-            # Case 4: Gradio SSR mode - dict with temp file path
-            if not audio["name"].lower().endswith('.wav'):
-                raise ValueError("Only WAV audio files are supported")
-            audio_path = audio["name"]
+        elif isinstance(audio, dict):
+            possible_path = audio.get("name") or audio.get("path") or audio.get("file")
+            if possible_path and os.path.exists(possible_path) and possible_path.endswith(".wav"):
+                audio_path = possible_path
+            else:
+                raise ValueError("Gradio dict input missing valid WAV file path.")
         else:
             raise ValueError("Unsupported audio input format. Expected WAV file, bytes, or Gradio audio tuple.")
  
-        # Validate the audio file
         if not validate_audio_file(audio_path):
             raise ValueError("Invalid audio file format. Please upload a valid WAV file with proper format.")
  
     except Exception as e:
-        # Clean up temporary file if it exists
         if os.path.exists(audio_path):
             try:
                 os.remove(audio_path)
@@ -187,14 +181,12 @@ def analyze_emotion(text: str, image, audio: Union[bytes, Tuple[bytes], str, Dic
             "image_confidence": image_conf
         }, get_mindfulness_suggestions(final_label), get_reflection_prompt(final_label)
     finally:
-        # Clean up temporary file after processing
-        if audio_path != audio and os.path.exists(audio_path):  # Only remove if we created it
+        if audio_path != audio and os.path.exists(audio_path):
             try:
                 os.remove(audio_path)
             except:
                 pass
  
-# ---------- INTERFACE ----------
 gr.Interface(
     fn=analyze_emotion,
     inputs=[
