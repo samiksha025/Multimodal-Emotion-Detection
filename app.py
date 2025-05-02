@@ -125,9 +125,12 @@ def get_reflection_prompt(emotion):
 # ---------- MAIN GRADIO APP ----------
 def analyze_emotion(text, image, audio):
     audio_path = "/tmp/temp_audio.wav"
+ 
     if isinstance(audio, tuple) and isinstance(audio[0], bytes):
         with open(audio_path, "wb") as f:
             f.write(audio[0])
+    elif isinstance(audio, str) and os.path.exists(audio):
+        audio_path = audio  # already saved path
     elif isinstance(audio, bytes):
         with open(audio_path, "wb") as f:
             f.write(audio)
@@ -135,6 +138,7 @@ def analyze_emotion(text, image, audio):
         raise ValueError("Unexpected audio input format or corrupted upload.")
  
     final_label, final_confidence, text_conf, voice_conf, image_conf = fusion_predict(text, audio_path, image)
+ 
     return final_label, {
         "text_confidence": text_conf,
         "voice_confidence": voice_conf,
@@ -156,4 +160,4 @@ gr.Interface(
         gr.Textbox(label="Reflection Prompt")
     ],
     title="AI-powered Mood Journal & Emotion Tracker"
-).launch(share=True)
+).launch()
