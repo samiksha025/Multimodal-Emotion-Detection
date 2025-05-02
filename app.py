@@ -7,12 +7,17 @@ from PIL import Image
 import os
 import joblib
 from torchvision import models, transforms
-from transformers import AutoTokenizer, AutoModelForSequenceClassification, Wav2Vec2Processor, Wav2Vec2ForSequenceClassification
+from transformers import (
+    AutoTokenizer, AutoModelForSequenceClassification,
+    Wav2Vec2Processor, Wav2Vec2ForSequenceClassification
+)
 from huggingface_hub import hf_hub_download
 import datetime
 import json
  
+# ---------- CONFIG ----------
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+os.environ["HF_TOKEN"] = os.getenv("HF_TOKEN")  # for private repo support
  
 # ---------- TEXT MODEL ----------
 text_model_path = "bert_emotion_model"
@@ -30,11 +35,11 @@ def predict_text(text):
         confidence = round(probs[0][pred_idx].item(), 4)
     return pred_label, confidence
  
-# ---------- VOICE MODEL (using model.safetensors) ----------
+# ---------- VOICE MODEL (safetensors) ----------
 voice_model_path = "wav2vec2-emotion-model"
 voice_model = Wav2Vec2ForSequenceClassification.from_pretrained(
     voice_model_path,
-    use_safetensors=True 
+    use_safetensors=True
 ).to(device)
 voice_processor = Wav2Vec2Processor.from_pretrained(voice_model_path)
 voice_model.eval()
@@ -51,7 +56,7 @@ def predict_voice(audio_path):
         confidence = round(probs[0][pred_idx].item(), 4)
     return pred_label, confidence
  
-# ---------- IMAGE MODEL ----------
+# ---------- IMAGE MODEL (from HF Hub LFS) ----------
 class_labels = ['angry', 'fear', 'happy', 'sad', 'surprise']
 transform = transforms.Compose([
     transforms.Resize((224, 224)),
@@ -61,7 +66,9 @@ transform = transforms.Compose([
  
 image_model_path = hf_hub_download(
     repo_id="SweArmy22/emotion-journal-app",
-    filename="final_emotion_image_classifier.pth"
+    filename="final_emotion_image_classifier.pth",
+    repo_type="model",
+    use_auth_token=True
 )
  
 image_model = models.resnet18(pretrained=False)
@@ -105,24 +112,22 @@ def log_interaction(user_id, text, image_path, audio_path, result):
  
 # ---------- MINDFULNESS + PROMPT ----------
 def get_mindfulness_suggestions(emotion):
-    suggestions = {
+    return {
         "angry": "Take deep breaths and try to release your frustration.",
         "fear": "Acknowledge your fears, but focus on grounding yourself in the present moment.",
         "happy": "Enjoy the moment and spread your happiness to others.",
         "sad": "It’s okay to feel sad, try to engage in activities that lift your mood.",
         "surprise": "Take a moment to process the unexpected and stay mindful of your reaction."
-    }
-    return suggestions.get(emotion, "Try to reflect on your emotions and breathe deeply.")
+    }.get(emotion, "Try to reflect on your emotions and breathe deeply.")
  
 def get_reflection_prompt(emotion):
-    prompts = {
+    return {
         "angry": "What triggered this anger, and how can you address it calmly?",
         "fear": "What is causing your fear, and how can you overcome it?",
         "happy": "What are you grateful for right now, and how can you spread positivity?",
         "sad": "What steps can you take to move forward and improve your mood?",
         "surprise": "How can you adapt to unexpected changes and stay positive?"
-    }
-    return prompts.get(emotion, "Reflect on your feelings and how you can improve your emotional well-being.")
+    }.get(emotion, "Reflect on your feelings and how you can improve your emotional well-being.")
  
 # ---------- MAIN GRADIO APP ----------
 def analyze_emotion(text, image, audio):
@@ -130,14 +135,11 @@ def analyze_emotion(text, image, audio):
     with open(audio_path, "wb") as f:
         f.write(audio)
     final_label, final_confidence, text_conf, voice_conf, image_conf = fusion_predict(text, audio_path, image)
-    mindfulness_suggestion = get_mindfulness_suggestions(final_label)
-    reflection_prompt = get_reflection_prompt(final_label)
-    confidence_scores = {
+    return final_label, {
         "text_confidence": text_conf,
         "voice_confidence": voice_conf,
         "image_confidence": image_conf
-    }
-    return final_label, confidence_scores, mindfulness_suggestion, reflection_prompt
+    }, get_mindfulness_suggestions(final_label), get_reflection_prompt(final_label)
  
 gr.Interface(
     fn=analyze_emotion,
