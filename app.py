@@ -18,8 +18,6 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 text_model_path = "bert_emotion_model"
 text_tokenizer = AutoTokenizer.from_pretrained(text_model_path)
 text_model = AutoModelForSequenceClassification.from_pretrained(text_model_path).to(device)
- 
-# Fix: Load label_encoder.joblib via huggingface_hub to bypass LFS issues
 label_encoder_text = joblib.load("bert_emotion_model/label_encoder.joblib")
  
 def predict_text(text):
@@ -32,9 +30,12 @@ def predict_text(text):
         confidence = round(probs[0][pred_idx].item(), 4)
     return pred_label, confidence
  
-# ---------- VOICE MODEL ----------
+# ---------- VOICE MODEL (with safetensors patch) ----------
 voice_model_path = "wav2vec2-emotion-model"
-voice_model = Wav2Vec2ForSequenceClassification.from_pretrained(voice_model_path).to(device)
+voice_model = Wav2Vec2ForSequenceClassification.from_pretrained(
+    voice_model_path,
+    from_safetensors=True
+).to(device)
 voice_processor = Wav2Vec2Processor.from_pretrained(voice_model_path)
 voice_model.eval()
 id2label_voice = voice_model.config.id2label
