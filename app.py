@@ -30,11 +30,11 @@ def predict_text(text):
         confidence = round(probs[0][pred_idx].item(), 4)
     return pred_label, confidence
  
-# ---------- VOICE MODEL (with safetensors patch) ----------
+# ---------- VOICE MODEL (using model.safetensors) ----------
 voice_model_path = "wav2vec2-emotion-model"
 voice_model = Wav2Vec2ForSequenceClassification.from_pretrained(
     voice_model_path,
-    from_safetensors=True
+    use_safetensors=True 
 ).to(device)
 voice_processor = Wav2Vec2Processor.from_pretrained(voice_model_path)
 voice_model.eval()
