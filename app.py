@@ -17,7 +17,6 @@ import json
  
 # ---------- CONFIG ----------
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-os.environ["HF_TOKEN"] = os.getenv("HF_TOKEN")  # for private repo support
  
 # ---------- TEXT MODEL ----------
 text_model_path = "bert_emotion_model"
@@ -35,7 +34,7 @@ def predict_text(text):
         confidence = round(probs[0][pred_idx].item(), 4)
     return pred_label, confidence
  
-# ---------- VOICE MODEL (safetensors) ----------
+# ---------- VOICE MODEL ----------
 voice_model_path = "wav2vec2-emotion-model"
 voice_model = Wav2Vec2ForSequenceClassification.from_pretrained(
     voice_model_path,
@@ -56,7 +55,7 @@ def predict_voice(audio_path):
         confidence = round(probs[0][pred_idx].item(), 4)
     return pred_label, confidence
  
-# ---------- IMAGE MODEL (from HF Hub LFS) ----------
+# ---------- IMAGE MODEL ----------
 class_labels = ['angry', 'fear', 'happy', 'sad', 'surprise']
 transform = transforms.Compose([
     transforms.Resize((224, 224)),
@@ -64,12 +63,7 @@ transform = transforms.Compose([
     transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
 ])
  
-image_model_path = hf_hub_download(
-    repo_id="SweArmy22/emotion-journal-app",
-    filename="final_emotion_image_classifier.pth",
-    repo_type="model",
-    use_auth_token=True
-)
+image_model_path = "final_emotion_image_classifier.pth"  # use local file
  
 image_model = models.resnet18(pretrained=False)
 image_model.fc = torch.nn.Linear(image_model.fc.in_features, len(class_labels))
