@@ -16,6 +16,7 @@ import json
 import wave
 import contextlib
 from typing import Union, Tuple, Dict
+import soundfile as sf
  
 # ---------- CONFIG ----------
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -127,6 +128,7 @@ def get_reflection_prompt(emotion):
  
 # ---------- AUDIO VALIDATION ----------
 def validate_audio_file(audio_path: str) -> bool:
+    """Validate WAV file format and basic properties."""
     try:
         with contextlib.closing(wave.open(audio_path, 'r')) as audio_file:
             if audio_file.getnchannels() not in [1, 2]:
@@ -139,60 +141,62 @@ def validate_audio_file(audio_path: str) -> bool:
     except (wave.Error, EOFError):
         return False
  
-# ---------- MAIN GRADIO APP ----------
-def analyze_emotion(text: str, image, audio: Union[bytes, Tuple[bytes], str, Dict]) -> Tuple:
-    audio_path = "/tmp/temp_audio.wav"
+def save_audio_data(audio_data: np.ndarray, sample_rate: int, path: str) -> None:
+    """Save numpy audio array to WAV file."""
+    sf.write(path, audio_data, sample_rate)
+ 
+def analyze_emotion(text: str, image, audio) -> Tuple:
+    audio_path = None
+    temp_file_created = False
     try:
-        if isinstance(audio, tuple) and len(audio) > 0 and isinstance(audio[0], bytes):
-            with open(audio_path, "wb") as f:
-                f.write(audio[0])
-        elif isinstance(audio, bytes):
-            with open(audio_path, "wb") as f:
-                f.write(audio)
-        elif isinstance(audio, str) and os.path.exists(audio):
+        
+        if isinstance(audio, str) and os.path.exists(audio):
             if not audio.lower().endswith('.wav'):
-                raise ValueError("Only WAV audio files are supported")
+                raise ValueError("Only WAV files are supported")
             audio_path = audio
         elif isinstance(audio, dict):
-            possible_path = audio.get("name") or audio.get("path") or audio.get("file")
-            if possible_path and os.path.exists(possible_path) and possible_path.endswith(".wav"):
-                audio_path = possible_path
+            path = audio.get("name") or audio.get("path") or audio.get("file")
+            if path and os.path.exists(path):
+                if not path.lower().endswith('.wav'):
+                    raise ValueError("Only WAV files are supported")
+                audio_path = path
             else:
-                raise ValueError("Gradio dict input missing valid WAV file path.")
+                raise ValueError("Invalid audio file path in dictionary")
         else:
-            raise ValueError("Unsupported audio input format. Expected WAV file, bytes, or Gradio audio tuple.")
- 
+            raise ValueError("Unsupported audio input format")
+         
         if not validate_audio_file(audio_path):
-            raise ValueError("Invalid audio file format. Please upload a valid WAV file with proper format.")
+            raise ValueError("Invalid WAV file format")
  
-    except Exception as e:
-        if os.path.exists(audio_path):
-            try:
-                os.remove(audio_path)
-            except:
-                pass
-        raise ValueError(f"Audio processing failed: {str(e)}. Please ensure you're uploading a valid WAV audio file.")
- 
-    try:
+        
         final_label, final_confidence, text_conf, voice_conf, image_conf = fusion_predict(text, audio_path, image)
         return final_label, {
             "text_confidence": text_conf,
             "voice_confidence": voice_conf,
             "image_confidence": image_conf
         }, get_mindfulness_suggestions(final_label), get_reflection_prompt(final_label)
+ 
+    except Exception as e:
+        raise ValueError(f"Audio processing failed: {str(e)}. Please upload a valid WAV file.")
     finally:
-        if audio_path != audio and os.path.exists(audio_path):
+        if temp_file_created and audio_path and os.path.exists(audio_path):
             try:
                 os.remove(audio_path)
             except:
                 pass
  
-gr.Interface(
+# Gradio Interface Configuration
+interface = gr.Interface(
     fn=analyze_emotion,
     inputs=[
         gr.Textbox(label="Enter journal text"),
         gr.Image(label="Upload an image"),
-        gr.Audio(label="Upload your voice")
+        gr.Audio(
+            label="Upload your voice",
+            type="filepath",  
+            source="upload",  
+            format="wav"     
+        )
     ],
     outputs=[
         gr.Textbox(label="Detected Emotion"),
@@ -200,5 +204,8 @@ gr.Interface(
         gr.Textbox(label="Mindfulness Suggestions"),
         gr.Textbox(label="Reflection Prompt")
     ],
-    title="AI-powered Mood Journal & Emotion Tracker"
-).launch()
+    title="AI-powered Mood Journal & Emotion Tracker",
+    description="Analyze your emotions through text, image, and voice inputs"
+)
+
+interface.launch()
