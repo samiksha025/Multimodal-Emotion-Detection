@@ -46,8 +46,25 @@ Reflection prompts to encourage emotional awareness
 
 User-friendly graphical interface
 
+
 **Results and Observations**
+
 ![image](https://github.com/user-attachments/assets/34d1f562-7db5-4708-a77d-fa6253ec68ef)
+
+![image](https://github.com/user-attachments/assets/79b790d9-ee62-4d17-8fe8-a450bbf41248)
+
+![image](https://github.com/user-attachments/assets/4ee098a7-0f29-457a-8fe8-36e07bce280f)
+
+![image](https://github.com/user-attachments/assets/73d93eca-1ba6-47ed-aa90-189104a4a5f7)
+
+![image](https://github.com/user-attachments/assets/3ea8594d-1078-4910-9ee7-065f2d44edf4)
+
+**HuggingFace URL: (UI Interface):**
+UI - Emotion Journal App - a Hugging Face Space by SweArmy22
+Repo files - SweArmy22/emotion-journal-app at main
+
+
+
 
 
 
